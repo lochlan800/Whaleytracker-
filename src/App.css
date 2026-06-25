@@ -350,24 +350,135 @@
   background: #fff;
 }
 
-/* ── Responsive ── */
+/* ── Responsive: mobile bottom sheet ── */
 @media (max-width: 640px) {
-  .sidebar {
-    position: absolute;
-    bottom: 0;
-    left: 0;
-    right: 0;
-    width: 100%;
-    height: 260px;
-    border-right: none;
-    border-top: 1px solid rgba(255,255,255,0.1);
-    z-index: 1000;
-    flex-direction: row;
-    flex-wrap: wrap;
-    overflow: auto;
+  .app {
+    flex-direction: column;
   }
 
   .map-container {
-    height: calc(100% - 260px);
+    flex: 1;
+    height: auto;
+    order: 1;
+  }
+
+  /* Bottom sheet docked under the map */
+  .sidebar {
+    order: 2;
+    width: 100%;
+    min-width: 0;
+    height: auto;
+    flex: 0 0 auto;
+    border-right: none;
+    border-top: 1px solid rgba(255,255,255,0.1);
+    border-radius: 16px 16px 0 0;
+    box-shadow: 0 -8px 24px rgba(0,0,0,0.4);
+    z-index: 1000;
+  }
+
+  /* Header: logo and status on one tidy row */
+  .sidebar-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    padding: 12px 16px;
+  }
+
+  .logo {
+    margin-bottom: 0;
+    gap: 9px;
+  }
+
+  .logo-icon {
+    font-size: 26px;
+  }
+
+  .logo h1 {
+    font-size: 15px;
+  }
+
+  .tagline {
+    font-size: 10px;
+  }
+
+  .status-badge {
+    flex-shrink: 0;
+  }
+
+  .stats-row {
+    padding: 0;
+  }
+
+  .stat {
+    padding: 9px 4px;
+  }
+
+  .stat-number {
+    font-size: 16px;
+  }
+
+  .section-header {
+    padding: 10px 16px 6px;
+  }
+
+  /* Species filters become a single horizontally-scrolling chip row */
+  .species-list {
+    display: flex;
+    flex-direction: row;
+    flex-wrap: nowrap;
+    overflow-x: auto;
+    overflow-y: hidden;
+    gap: 8px;
+    padding: 2px 16px 10px;
+    scrollbar-width: none;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .species-list::-webkit-scrollbar {
+    display: none;
+  }
+
+  .species-row {
+    flex: 0 0 auto;
+    width: auto;
+    margin-bottom: 0;
+    padding: 7px 12px;
+    border: 1px solid rgba(255,255,255,0.1);
+    border-radius: 100px;
+    background: rgba(255,255,255,0.04);
+    gap: 8px;
+  }
+
+  .species-row.active {
+    border-color: rgba(56,189,248,0.4);
+    background: rgba(56,189,248,0.08);
+  }
+
+  .species-name {
+    flex: 0 0 auto;
+    white-space: nowrap;
+    font-size: 12.5px;
+  }
+
+  .skeleton-row {
+    flex: 0 0 120px;
+    height: 34px;
+  }
+
+  .loading-list {
+    display: flex;
+    flex-direction: row;
+    gap: 8px;
+    padding: 2px 16px 10px;
+  }
+
+  .refresh-btn {
+    margin: 0 16px 10px;
+    padding: 11px;
+  }
+
+  .sidebar-footer {
+    padding: 8px 16px calc(8px + env(safe-area-inset-bottom));
   }
 }
