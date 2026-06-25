@@ -83,20 +83,46 @@ export function useWhaleData() {
     setLoading(true);
     setError(null);
     try {
-      const params = new URLSearchParams({
-        orderKey: 2688407,   // Cetacea
-        hasCoordinate: true,
-        occurrenceStatus: 'PRESENT',
-        limit: 300,
+      const currentYear = new Date().getFullYear();
+
+      // Query each whale species separately so markers are color-coded and we
+      // can restrict to recent at-sea *observations* (not museum specimens or
+      // strandings, which geolocate onto land and caused inland clustering).
+      const requests = SPECIES_CONFIG.map(async (sp) => {
+        const params = new URLSearchParams({
+          scientificName: sp.scientific,
+          hasCoordinate: 'true',
+          hasGeospatialIssue: 'false',
+          occurrenceStatus: 'PRESENT',
+          year: `${currentYear - 10},${currentYear}`,
+          limit: '40',
+        });
+        // basisOfRecord repeats: keep human/machine observations, drop specimens
+        params.append('basisOfRecord', 'HUMAN_OBSERVATION');
+        params.append('basisOfRecord', 'MACHINE_OBSERVATION');
+
+        const res = await fetch(`${GBIF_URL}?${params}`);
+        if (!res.ok) throw new Error(`GBIF API error: ${res.status}`);
+        const json = await res.json();
+        return (json.results || [])
+          .filter(o => o.decimalLatitude != null && o.decimalLongitude != null)
+          .map(classifyOccurrence);
       });
-      const res = await fetch(`${GBIF_URL}?${params}`);
-      if (!res.ok) throw new Error(`GBIF API error: ${res.status}`);
-      const json = await res.json();
-      const results = (json.results || [])
-        .filter(o => o.decimalLatitude != null && o.decimalLongitude != null)
-        .map(classifyOccurrence);
-      if (results.length === 0) throw new Error('No results returned');
-      setWhales(results);
+
+      const settled = await Promise.allSettled(requests);
+      const merged = [];
+      const seen = new Set();
+      for (const r of settled) {
+        if (r.status !== 'fulfilled') continue;
+        for (const w of r.value) {
+          if (seen.has(w.id)) continue;
+          seen.add(w.id);
+          merged.push(w);
+        }
+      }
+
+      if (merged.length === 0) throw new Error('No results returned');
+      setWhales(merged);
       setUsingFallback(false);
       setLastUpdated(new Date());
     } catch (err) {
