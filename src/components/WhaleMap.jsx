@@ -2,67 +2,89 @@ import { useEffect, useRef } from 'react';
 import { MapContainer, TileLayer, useMap } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import WhalePopup from './WhalePopup';
-import { createRoot } from 'react-dom/client';
 
-// Fix default icon path issue with Vite
-delete L.Icon.Default.prototype._getIconUrl;
-L.Icon.Default.mergeOptions({
-  iconRetinaUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon-2x.png',
-  iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
-  shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
-});
+function esc(str) {
+  return String(str ?? '')
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
 
-function makeWhaleIcon(color, isNew = false) {
-  const size = isNew ? 18 : 14;
-  const svg = `
-    <svg xmlns="http://www.w3.org/2000/svg" width="${size * 2 + 8}" height="${size * 2 + 8}" viewBox="0 0 ${size * 2 + 8} ${size * 2 + 8}">
-      <circle cx="${size + 4}" cy="${size + 4}" r="${size}" fill="${color}" fill-opacity="0.25" />
-      <circle cx="${size + 4}" cy="${size + 4}" r="${size * 0.55}" fill="${color}" stroke="white" stroke-width="1.5" />
-    </svg>`;
+function makePopupHtml(whale) {
+  const photo = whale.photo
+    ? `<img src="${esc(whale.photo)}" alt="${esc(whale.commonName)}"
+         onerror="this.style.display='none'"
+         style="width:100%;height:120px;object-fit:cover;border-radius:6px;margin-bottom:8px;display:block" />`
+    : '';
+  const row = (label, val) => val
+    ? `<tr>
+         <td style="color:#94a3b8;padding-right:8px;padding-bottom:3px;white-space:nowrap;vertical-align:top">${esc(label)}</td>
+         <td style="color:#334155;padding-bottom:3px">${esc(val)}</td>
+       </tr>`
+    : '';
+  const link = whale.gbifUrl
+    ? `<a href="${esc(whale.gbifUrl)}" target="_blank" rel="noopener noreferrer"
+         style="display:block;margin-top:10px;text-align:center;font-size:12px;color:#38bdf8;text-decoration:none">
+         View on GBIF →
+       </a>`
+    : '';
+
+  return `
+    <div style="min-width:200px;max-width:260px;font-family:system-ui,sans-serif">
+      ${photo}
+      <div style="display:flex;align-items:center;gap:8px;margin-bottom:6px">
+        <span style="width:12px;height:12px;border-radius:50%;background:${esc(whale.color)};flex-shrink:0;box-shadow:0 0 6px ${esc(whale.color)}"></span>
+        <strong style="font-size:15px;color:#1e293b;line-height:1.2">${esc(whale.commonName)}</strong>
+      </div>
+      <div style="font-size:12px;color:#475569;font-style:italic;margin-bottom:8px">${esc(whale.species)}</div>
+      <table style="font-size:13px;width:100%;border-collapse:collapse">
+        ${row('Date', whale.date)}
+        ${row('Location', whale.location || whale.country)}
+        ${row('Source', whale.source)}
+        ${row('Lat / Lng', `${whale.lat.toFixed(3)}, ${whale.lng.toFixed(3)}`)}
+      </table>
+      ${link}
+    </div>`;
+}
+
+function makeWhaleIcon(color) {
+  const size = 14;
+  const total = size * 2 + 8;
+  const cx = size + 4;
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${total}" height="${total}" viewBox="0 0 ${total} ${total}">
+    <circle cx="${cx}" cy="${cx}" r="${size}" fill="${color}" fill-opacity="0.25"/>
+    <circle cx="${cx}" cy="${cx}" r="${size * 0.55}" fill="${color}" stroke="white" stroke-width="1.5"/>
+  </svg>`;
   return L.divIcon({
     html: svg,
     className: '',
-    iconSize: [size * 2 + 8, size * 2 + 8],
-    iconAnchor: [size + 4, size + 4],
-    popupAnchor: [0, -(size + 4)],
+    iconSize: [total, total],
+    iconAnchor: [cx, cx],
+    popupAnchor: [0, -cx],
   });
 }
 
 function MarkersLayer({ whales, activeSpecies }) {
   const map = useMap();
   const markersRef = useRef([]);
-  const popupRootsRef = useRef([]);
 
   useEffect(() => {
-    // Clear old markers
     markersRef.current.forEach(m => m.remove());
-    popupRootsRef.current.forEach(r => { try { r.unmount(); } catch {} });
     markersRef.current = [];
-    popupRootsRef.current = [];
 
     const visible = activeSpecies.size === 0
       ? whales
       : whales.filter(w => activeSpecies.has(w.species));
 
     visible.forEach(whale => {
-      const icon = makeWhaleIcon(whale.color);
-      const marker = L.marker([whale.lat, whale.lng], { icon });
-
-      const popupEl = document.createElement('div');
-      const root = createRoot(popupEl);
-      root.render(<WhalePopup whale={whale} />);
-      popupRootsRef.current.push(root);
-
-      marker.bindPopup(popupEl, { maxWidth: 280, className: 'whale-popup' });
+      const marker = L.marker([whale.lat, whale.lng], { icon: makeWhaleIcon(whale.color) });
+      marker.bindPopup(makePopupHtml(whale), { maxWidth: 280, className: 'whale-popup' });
       marker.addTo(map);
       markersRef.current.push(marker);
     });
 
-    return () => {
-      markersRef.current.forEach(m => m.remove());
-      popupRootsRef.current.forEach(r => { try { r.unmount(); } catch {} });
-    };
+    return () => { markersRef.current.forEach(m => m.remove()); };
   }, [map, whales, activeSpecies]);
 
   return null;
